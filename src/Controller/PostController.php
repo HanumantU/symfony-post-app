@@ -5,7 +5,10 @@ namespace App\Controller;
 use App\Entity\Post;
 use App\Form\PostType;
 use App\Repository\PostRepository;
+use App\Services\FileUploader;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Form\FileUploadError;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\HttpFoundation\Request;
@@ -34,7 +37,7 @@ class PostController extends AbstractController
      * @param Request $request
      * @return Response
      */
-    public function create(Request $request): Response {
+    public function create(Request $request, FileUploader $fileUploader): Response {
         $post = new Post();
 
         $form = $this->createForm(PostType::class, $post);
@@ -44,8 +47,17 @@ class PostController extends AbstractController
         if($form->isSubmitted()) {
             //entity manager
             $entityManager = $this->getDoctrine()->getManager();
-            $entityManager->persist($post);
-            $entityManager->flush();
+
+            /** @var UploadedFile $file */
+            $file = $request->files->get('post')['attachment'];
+            if($file) {
+                $filename = $fileUploader->uploadFile($file);
+
+                $post->setImage($filename);
+                $entityManager->persist($post);
+                $entityManager->flush();
+            }
+
             return $this->redirect($this->generateUrl('post.index'));
         }
 
